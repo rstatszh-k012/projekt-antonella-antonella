@@ -1,0 +1,163 @@
+---
+title: "Sondierbohrungen II"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+#| echo: false
+library(readxl)
+library(tidyverse)
+library(dplyr)
+```
+
+```{r}
+Sondierbohrungen<-
+  read.csv2(here::here("daten/raw/SondierbohrungenZollikonKüsnachtErlenbach.CSV"))
+```
+
+```{r}
+#Sondierbohrungen <-
+ # read_csv(here::here("daten/raw/SondierbohrungenZollikonKüsnachtErlenbach.CSV"))
+```
+
+```{r}
+#Sondierbohrungen <-
+ # read.csv2("SondierbohrungenZollikonKüsnachtErlenbach.CSV", header=T)
+head(Sondierbohrungen)
+```
+
+```{r}
+Sondierbohrungen<-
+  Sondierbohrungen |> 
+  select(Gemeinde, XKOORD, YKOORD, Terrainkote.der.Bohrung, Ausführungsjahr, Bohrtiefe, Felstiefe, Grundwasserspiegelkote, Flurabstand.an.diesem.Tag, Firma)
+```
+
+```{r}
+Sondierbohrungen<-
+  Sondierbohrungen |>  
+  rename(
+    Terrainkote_m = "Terrainkote.der.Bohrung", 
+    Jahr = "Ausführungsjahr",
+    Flurabstand_m ="Flurabstand.an.diesem.Tag",
+    Bohrtiefe_m = Bohrtiefe,
+    east_coordinate_lv95 = "XKOORD",
+    north_coordinate_lv95 = "YKOORD")
+
+head(Sondierbohrungen)
+```
+
+```{r}
+#| echo: false
+install.packages("sf",dependencies = TRUE)
+install.packages("maps",dependencies = TRUE)
+library(sf)
+library(maps)
+```
+
+```{r}
+east_coordinate_lv95<-as.numeric(Sondierbohrungen$east_coordinate_lv95)
+typeof(Sondierbohrungen)
+north_coordinate_lv95 <- as.numeric(Sondierbohrungen$north_coordinate_lv95)
+class(north_coordinate_lv95)
+Bohrtiefe_m <- as.numeric(Sondierbohrungen$Bohrtiefe_m)
+class(Bohrtiefe_m)
+library(labelled)
+comment(Sondierbohrungen$Bohrtiefe_m) <- "Meter"
+Bohrtiefe_m
+Terrainkote_m <- as.numeric(Sondierbohrungen$Terrainkote_m)
+class(Terrainkote_m)
+
+#Grundwasserspiegelkote<-
+# Sondierbohrungen |> 
+#mutate(Grundwasserspiegelkote = as.numeric(Grundwasserspiegelkote))
+
+Grundwasserspiegelkote <- as.numeric(Sondierbohrungen$Grundwasserspiegelkote)
+class(Grundwasserspiegelkote)
+```
+
+```{r}
+Sondierbohrungen |> 
+  relocate(Terrainkote_m, .after = Grundwasserspiegelkote)
+```
+
+```{r}
+glimpse(Sondierbohrungen)
+```
+
+```{r}
+ggplot(
+  data=Sondierbohrungen,
+  mapping=aes(x=Bohrtiefe_m, y=Jahr, fill = Gemeinde)
+)+
+  geom_col(na.rm = TRUE)
+```
+
+```{r}
+ggplot(
+  data=Sondierbohrungen,
+  mapping=aes(x=Bohrtiefe_m, y=Jahr, fill = Gemeinde)
+)+
+  geom_col(na.rm = TRUE)+
+  scale_x_continuous(breaks  = seq(30, 3000, by = 30)) 
+```
+
+```{r}
+ggplot(
+  data=Sondierbohrungen,
+  mapping=aes(x=Bohrtiefe_m, y=Jahr, colour = Gemeinde)
+)+
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+```{r}
+ggplot(
+  data=Sondierbohrungen,
+  mapping=aes(x=Bohrtiefe_m, y=Jahr, colour = Gemeinde)
+)+
+  geom_point(na.rm=TRUE) +
+  coord_cartesian(xlim = c(0, 75))+
+  geom_smooth(method = "lm")
+```
+
+```{r}
+summary(Sondierbohrungen)
+```
+
+```{r}
+summary(is.na(Sondierbohrungen$column_name))
+```
+
+```{r}
+library(dplyr)
+Sondierbohrungen |> 
+  filter(!is.na(Jahr)) |> 
+  ggplot(aes(x = Jahr, color = Gemeinde)) + geom_density()
+```
+
+```{r}
+Sondierbohrungen |> 
+  filter(!is.na(Jahr) |>
+  ggplot(aes(x = Jahr, y = Grundwasserspiegelkote)) +
+  geom_point(aes(color = Gemeinde, shape = Gemeinde)) +
+  facet_wrap(~Gemeinde))
+ggsave(filename = "GWS Gemeinde.png")
+```
+
+```{r}
+library(scales)
+
+# Beispiel für ggplot
+ggplot(Sondierbohrungen, aes(x = Jahr, y = Grundwasserspiegelkote)) +
+  geom_point() +
+  scale_y_continuous(breaks = seq(300, 700, by = 20)) 
+```

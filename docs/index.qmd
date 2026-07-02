@@ -1,0 +1,27 @@
+---
+title: "index"
+format: html
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+```
+
+```{r}
+read_csv2(here::here("daten/raw/Sondierbohrungen.CSV"))
+```
+
+
+```{r}
+daten_in <- read_delim(here::here("daten/raw/Sondierbohrungen.CSV"), 
+                       delim = ";",
+                       locale = locale(encoding = "latin1"))
+```
+
+```{r}
+daten_in
+```
+
