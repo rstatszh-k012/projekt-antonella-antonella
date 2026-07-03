@@ -20,18 +20,40 @@ library(dplyr)
 ```
 
 ```{r}
+Sondierbohrungen <- read_delim(here::here("daten/raw/SondierbohrungenZollikonKüsnachtErlenbach.CSV"), 
+                       delim = ";",
+                       locale = locale(encoding = "latin1"))
+```
+
+```{r}
 Sondierbohrungen<-
-  read.csv2(here::here("daten/raw/SondierbohrungenZollikonKüsnachtErlenbach.CSV"))
+  Sondierbohrungen |> 
+  select(Gemeinde, XKOORD, YKOORD, Terrainkote.der.Bohrung, Ausführungsjahr, Bohrtiefe, Felstiefe, Grundwasserspiegelkote, Flurabstand.an.diesem.Tag, Firma)
 ```
 
-```{r}
-#Sondierbohrungen <-
- # read_csv(here::here("daten/raw/SondierbohrungenZollikonKüsnachtErlenbach.CSV"))
-```
 
 ```{r}
-#Sondierbohrungen <-
- # read.csv2("SondierbohrungenZollikonKüsnachtErlenbach.CSV", header=T)
+Sondierbohrungen<-
+  Sondierbohrungen |> 
+  select(Gemeinde, XKOORD, YKOORD, Terrainkote.der.Bohrung, Ausführungsjahr, Bohrtiefe, Felstiefe, Grundwasserspiegelkote, Flurabstand.an.diesem.Tag, Firma)
+```
+```{r}
+names(Sondierbohrungen)
+```
+
+
+
+```{r}
+Sondierbohrungen<-
+  Sondierbohrungen |>  
+  rename(
+    Terrainkote_m = "Terrainkote der Bohrung", 
+    Jahr = "AusfÃ¼hrungsjahr",
+    Flurabstand_m ="Flurabstand an diesem Tag",
+    Bohrtiefe_m = Bohrtiefe,
+    east_coordinate_lv95 = "XKOORD",
+    north_coordinate_lv95 = "YKOORD")
+
 head(Sondierbohrungen)
 ```
 
@@ -41,19 +63,7 @@ Sondierbohrungen<-
   select(Gemeinde, XKOORD, YKOORD, Terrainkote.der.Bohrung, Ausführungsjahr, Bohrtiefe, Felstiefe, Grundwasserspiegelkote, Flurabstand.an.diesem.Tag, Firma)
 ```
 
-```{r}
-Sondierbohrungen<-
-  Sondierbohrungen |>  
-  rename(
-    Terrainkote_m = "Terrainkote.der.Bohrung", 
-    Jahr = "Ausführungsjahr",
-    Flurabstand_m ="Flurabstand.an.diesem.Tag",
-    Bohrtiefe_m = Bohrtiefe,
-    east_coordinate_lv95 = "XKOORD",
-    north_coordinate_lv95 = "YKOORD")
 
-head(Sondierbohrungen)
-```
 
 ```{r}
 #| echo: false
