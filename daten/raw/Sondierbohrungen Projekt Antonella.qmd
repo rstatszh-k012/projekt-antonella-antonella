@@ -81,7 +81,15 @@ class(Terrainkote_m)
 
 Grundwasserspiegelkote <- as.numeric(Sondierbohrungen$Grundwasserspiegelkote)
 class(Grundwasserspiegelkote)
+class(Sondierbohrungen$Jahr)
 ```
+
+```{r}
+Sondierbohrungen |> 
+  Gemeinde |> 
+  filter(str_detect(Gemeinde, "Ã¼"))
+```
+
 
 ```{r}
 Sondierbohrungen |> 
@@ -93,6 +101,13 @@ glimpse(Sondierbohrungen)
 ```
 ```{r}
 Sondierbohrungen[Sondierbohrungen$Gemeinde == "KÃ¼snacht (ZH)", "Gemeinde"] <- "Küsnacht"
+
+```
+```{r}
+
+```
+```{r}
+Sondierbohrungen
 ```
 
 
@@ -144,6 +159,40 @@ ggplot(
 ```
 
 ```{r}
+
+library(devtools)
+# devtools::install_github("statistikZH/statR")
+install_github("statistikZH/statR")
+1
+library(statR)
+1
+install.packages("pak")
+library(statR)
+display.statcol.all()
+
+pak::pak("statistikZH/statR")
+zhpal$zhwebdataviz
+display(zhpal$zhwebdataviz)
+zhpal$zhblue
+display(zhpal$zhblue)
+
+```
+
+
+```{r}
+ggplot(Sondierbohrungen, aes(x = Jahr, y = Bohrtiefe_m, fill = Gemeinde)) +
+    geom_col(fill = zhpal$zhblue[1], width = 0.8) +
+        labs(x = "Jahr",
+         y = NULL,
+         title = "Bohrtiefe und Jahr der Ausführung, Zürich",
+         subtitle = "Jahrgänge 1960 bis 2030") +
+    theme_stat() +
+    theme(axis.text.y = element_blank(),
+          panel.grid.major.y = element_blank())
+```
+
+
+```{r}
 ggplot(
   data=Sondierbohrungen,
   mapping=aes(x=Bohrtiefe_m, y=Jahr, colour = Gemeinde)
@@ -169,6 +218,18 @@ Sondierbohrungen |>
 ```
 
 ```{r}
+ggplot(
+  data=Sondierbohrungen,
+  mapping=aes(x=Bohrtiefe_m, y=Jahr, fill = Gemeinde)
+  )+
+  geom_col()
+```
+
+
+
+
+
+```{r}
 Sondierbohrungen |> 
   filter(!is.na(Jahr) |>
   ggplot(aes(x = Jahr, y = Grundwasserspiegelkote)) +
@@ -185,3 +246,27 @@ ggplot(Sondierbohrungen, aes(x = Jahr, y = Grundwasserspiegelkote)) +
   geom_point() +
   scale_y_continuous(breaks = seq(300, 700, by = 20)) 
 ```
+
+```{r}
+Sondierbohrungen |> 
+  distinct(Gemeinde)
+```
+```{r}
+install.packages("kableExtra")
+library(kableExtra)
+```
+```{r}
+Sondierbohrungen |>
+  count(Gemeinde, wt= wert, sort = TRUE)
+```
+
+```{r}
+Gemeinde-wert<-
+ Sondierbohrungen$"Gemeide"
+```
+```{r}
+Sondierbohrungen |> 
+  count(Gemeinde, Firma, na.rm = TRUE) |> 
+  mutate(letzte = str_sub(Gemeinde, -1, -1))
+```
+
