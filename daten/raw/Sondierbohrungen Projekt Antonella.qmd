@@ -4,589 +4,298 @@ format: html
 editor: visual
 ---
 
-## Quarto
+## Über dieses Dokument
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+Analyse der Sondierbohrungen in den Gemeinden Zollikon, Küsnacht und Erlenbach am
+rechten Zürichseeufer. Dieses Dokument liest die Rohdaten ein, bereinigt sie und
+stellt Bohrtiefe und Grundwasserspiegel dar. Am Schluss werden die Bohrungen als Karte
+visualisiert.
 
-## Running Code
-
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+Pakete werden einmalig in der Konsole installiert, nicht im Dokument. Alle
+`library()`-Aufrufe stehen gebündelt im ersten Chunk.
 
 ```{r}
-#| echo: false
-library(readxl)
+#| label: setup
+#| message: false
 library(tidyverse)
-library(dplyr)
-library(stringr)
-library(kableExtra)
+library(ggthemes)
+library(sf)
 ```
 
+## Daten einlesen
+
+Die CSV-Datei ist UTF-8-kodiert. Deshalb lesen wir sie mit `encoding = "UTF-8"` ein.
+So kommen die Umlaute (Küsnacht, Zürich, Jäckli) von Anfang an korrekt an und die
+früher nötigen manuellen Umlaut-Korrekturen entfallen vollständig.
+
 ```{r}
-Sondierbohrungen <- read_delim(here::here("daten/raw/SondierbohrungenZollikonKüsnachtErlenbach.CSV"), 
-                       delim = ";",
-                       locale = locale(encoding = "latin1"))
+Sondierbohrungen <- read_delim(
+  here::here("daten/raw/SondierbohrungenZollikonKüsnachtErlenbach.CSV"),
+  delim = ";",
+  locale = locale(encoding = "UTF-8"),
+  show_col_types = FALSE
+)
 ```
-Wieviele Gemeinden sind im File
+
+Welche Gemeinden sind im File?
+
 ```{r}
-Sondierbohrungen |> 
+Sondierbohrungen |>
   distinct(Gemeinde)
 ```
 
-Spaltennamen anzeigen
-```{r}
-names(Sondierbohrungen)
-```
-
-Spaltennamen umbenennen und korrigieren
+## Spalten umbenennen und auswählen
 
 ```{r}
-Sondierbohrungen<-
-  Sondierbohrungen |>  
+Sondierbohrungen <- Sondierbohrungen |>
   rename(
-    Terrainkote_m = "Terrainkote der Bohrung", 
-    Jahr = "AusfÃ¼hrungsjahr",
-    Flurabstand_m ="Flurabstand an diesem Tag",
+    Terrainkote_m = "Terrainkote der Bohrung",
+    Jahr = "Ausführungsjahr",
+    Flurabstand_m = "Flurabstand an diesem Tag",
     Bohrtiefe_m = Bohrtiefe,
-    east_coordinate_lv95 = "XKOORD",
-    north_coordinate_lv95 = "YKOORD")
-
-head(Sondierbohrungen)
+    east_coordinate_lv95 = XKOORD,
+    north_coordinate_lv95 = YKOORD
+  ) |>
+  select(
+    Gemeinde, east_coordinate_lv95, north_coordinate_lv95,
+    Terrainkote_m, Jahr, Bohrtiefe_m, Felstiefe,
+    Grundwasserspiegelkote, Flurabstand_m, Firma
+  )
 ```
-Spalten auswählen
+
+## Datentypen umwandeln
+
+Die Koordinaten und Meterangaben werden als Text eingelesen. Wir wandeln sie mit
+`mutate(across(...))` in Zahlen um und schreiben das Ergebnis direkt in die Tabelle
+zurück. So stimmen die Typen für alle folgenden Chunks.
+
+Hinweis: In der Spalte `Grundwasserspiegelkote` stehen in einigen Zeilen Excel-Fehler
+("FALSCH"). Diese werden bei der Umwandlung zu `NA` (mit einer Warnung), das ist
+gewollt.
 
 ```{r}
-Sondierbohrungen<-
-  Sondierbohrungen |> 
-  select(Gemeinde, east_coordinate_lv95, north_coordinate_lv95, Terrainkote_m, Jahr, Bohrtiefe_m, Felstiefe, Grundwasserspiegelkote, Flurabstand_m, Firma)
+Sondierbohrungen <- Sondierbohrungen |>
+  mutate(across(
+    c(east_coordinate_lv95, north_coordinate_lv95,
+      Bohrtiefe_m, Terrainkote_m, Grundwasserspiegelkote),
+    as.numeric
+  ))
+
+glimpse(Sondierbohrungen)
 ```
 
+## Gemeinde- und Firmennamen bereinigen
+
+Die Gemeindenamen tragen den Zusatz "(ZH)". Den entfernen wir, damit die Namen kurz und
+einheitlich sind.
 
 ```{r}
-library(lubridate)
-Grundwasserspiegelkote<-
-Sondierbohrungen |> 
-mutate(Grundwasserspiegelkote = as.numeric(Grundwasserspiegelkote))
+Sondierbohrungen <- Sondierbohrungen |>
+  mutate(Gemeinde = str_remove(Gemeinde, "\\s*\\(ZH\\)"))
+
+Sondierbohrungen |>
+  distinct(Gemeinde)
 ```
 
-
-Koordinaten und Meterangaben in numeric ändern
+Ein Firmenname wird vereinheitlicht: "Dr. Heinrich Jäckli AG" heisst heute
+"Jäckli Geologie AG".
 
 ```{r}
-east_coordinate_lv95<-as.numeric(Sondierbohrungen$east_coordinate_lv95)
-typeof(Sondierbohrungen)
-north_coordinate_lv95 <- as.numeric(Sondierbohrungen$north_coordinate_lv95)
-class(north_coordinate_lv95)
-Bohrtiefe_m <- as.numeric(Sondierbohrungen$Bohrtiefe_m)
-class(Bohrtiefe_m)
-Bohrtiefe_m
-Terrainkote_m <- as.numeric(Sondierbohrungen$Terrainkote_m)
-class(Terrainkote_m)
-Grundwasserspiegelkote <- as.numeric(Sondierbohrungen$Grundwasserspiegelkote)
-class(Grundwasserspiegelkote)
-class(Sondierbohrungen$Jahr)
-```
-Comment zu Meterangaben?
-```{r}
-library(labelled)
-comment(Sondierbohrungen$Bohrtiefe_m) <- "Meter"
+Sondierbohrungen <- Sondierbohrungen |>
+  mutate(Firma = str_replace_all(
+    Firma, "Dr\\. Heinrich Jäckli AG", "Jäckli Geologie AG"
+  ))
 ```
 
-Relocate Spalten
-```{r}
-Sondierbohrungen |> 
-  relocate(Terrainkote_m, .after = Grundwasserspiegelkote)
-```
+## Datenfehler korrigieren
 
-Schreibfehler lokalisieren bei Firmennamen. 105 Einträge
+Zwei Werte in den Daten sind fehlerhaft und werden über eine Bedingung korrigiert, nicht
+über die Zeilennummer. Eine Korrektur per Zeilennummer (`Sondierbohrungen[155, 8] <- ...`)
+funktioniert nur, solange die Zeilenreihenfolge exakt gleich bleibt. Sobald vorher
+gefiltert oder sortiert wird, zeigt Zeile 155 auf einen anderen Datensatz. Mit einer
+Bedingung wird der richtige Wert unabhängig von der Position gefunden.
+
+**Ausreisser bei der Bohrtiefe.** Küsnacht hat für 1960 eine Bohrtiefe von 2692.5 Meter.
+Alle anderen Werte liegen zwischen 0 und rund 45 Meter. Diese Bohrung ist tatsächlich
+eine der tiefsten der Schweiz, aber als Ausnahme für die folgenden Darstellungen und
+Berechnungen ungeeignet: der eine Wert zieht die y-Achse auf ~2700 hoch, sodass alle
+echten Balken zu einem unsichtbaren Strich zusammengedrückt werden. Wir setzen ihn
+deshalb auf `NA` und dokumentieren ihn hier separat.
 
 ```{r}
-zeilen_mit_Schreibfehler <- grep("[Ã¼]", Sondierbohrungen$Firma)
-ergebnis <- Sondierbohrungen[zeilen_mit_Schreibfehler, ]
-print(zeilen_mit_Schreibfehler)
-zeilen_mit_Schreibfehler
+# Küsnacht 1960: 2692.5 m Bohrtiefe (Ausreisser, separat dokumentiert)
+Sondierbohrungen <- Sondierbohrungen |>
+  mutate(Bohrtiefe_m = if_else(Bohrtiefe_m > 100, NA_real_, Bohrtiefe_m))
 ```
 
-Schreibfehler lokalisieren bei Gemeinden. 106 Einträge
+**Vertauschte Werte beim Grundwasserspiegel.** In der Zeile für Erlenbach 1987 sind
+Grundwasserspiegelkote (12.3) und Flurabstand (666.7) vertauscht. Wir tauschen sie über
+eine Bedingung zurück.
 
 ```{r}
-ergebnis_tidy <- Sondierbohrungen |> 
-  filter(str_detect(Gemeinde, "[Ã¼]"))
-
-print(ergebnis_tidy)
+Sondierbohrungen <- Sondierbohrungen |>
+  mutate(
+    Grundwasserspiegelkote = case_when(
+      Grundwasserspiegelkote == 12.3 ~ 666.7,
+      .default = Grundwasserspiegelkote
+    ),
+    Flurabstand_m = case_when(
+      Flurabstand_m == 666.7 ~ 12.3,
+      .default = Flurabstand_m
+    )
+  )
 ```
 
-Fehler in Namen korrigieren
+## Erste Auswertungen
 
-```{r}
-Sondierbohrungen$Firma <- gsub("Dr. Heinrich JÃ¤ckli AG", "Jäckli Geologie AG", Sondierbohrungen$Firma)
-```
-
-?? 38 obs, 4 variables
-```{r}
-Sond<-
-  Sondierbohrungen |> 
-  count(Gemeinde, Firma, na.rm = TRUE) 
-```
-
-?? 38 obs, 4 variables
-```{r}
-Schreibfehler <- Sondierbohrungen |> 
-    group_by(Gemeinde, Firma) |>
-    summarize(sum_x = sum(str_detect(Gemeinde, "Ã¼")),
-              sum_y = sum(str_detect(Firma, "Ã¼")))
-```
-
-Gemeindenamen Küsnacht korrigieren
-```{r}
-Sondierbohrungen[Sondierbohrungen$Gemeinde == "KÃ¼snacht (ZH)", "Gemeinde"] <- "Küsnacht"
-
-```
-
-Firmennamen Jäckli korrigieren 
-
-```{r}
-#Sondierbohrungen[Sondierbohrungen$Firma == contains("JÃ¤ckli"), "Firma"] <- "Jäckli Geologie AG"
-```
-
-Firmennamen umbenennen
-
-```{r}
-Sondierbohrungen$Firma <- gsub("IngenieurbÃ¼ro Kisseleff AG, KÃ¼snach", "Ingenieurbüro Kisseleff AG, Küsnacht", Sondierbohrungen$Firma)
-```
-
-```{r}
-Sondierbohrungen$Firma <- gsub("Dr. U. Vollenweider, ZÃ¼rich", "Dr. U. Vollenweider, Zürich", Sondierbohrungen$Firma)
-```
-
-Durchschnittlicher Grundwasserspiegel der Gemeinden im 1990
+Durchschnittlicher Grundwasserspiegel der Gemeinden im Jahr 1990.
 
 ```{r}
 Sondierbohrungen |>
   filter(Jahr == 1990) |>
-  group_by(Gemeinde) |>
-  summarise(
-    mean_GWS = mean(Grundwasserspiegelkote)
+  summarise(mean_GWS = mean(Grundwasserspiegelkote, na.rm = TRUE), .by = Gemeinde)
+```
+
+Koordinaten absteigend sortieren.
+
+```{r}
+Sondierbohrungen |>
+  arrange(desc(east_coordinate_lv95), desc(north_coordinate_lv95))
+```
+
+## Bohrtiefe nach Gemeinde und Jahr
+
+Da der Ausreisser jetzt `NA` ist, brauchen wir die y-Achse nicht mehr von Hand mit
+`scale_y_continuous(limits = ...)` zu begrenzen. Das ist wichtig: `limits` löscht alle
+Zeilen ausserhalb des Bereichs vor dem Zeichnen (daher die Warnung "Removed N rows") und
+lässt so Gemeinden wie Erlenbach verschwinden. Zum Zoomen verwenden wir bei Bedarf
+`coord_cartesian()`, das die Ansicht zoomt, ohne Daten zu löschen.
+
+```{r}
+ggplot(
+  data = Sondierbohrungen,
+  mapping = aes(x = Jahr, y = Bohrtiefe_m, fill = Gemeinde)
+) +
+  geom_col(na.rm = TRUE) +
+  scale_fill_colorblind() +
+  labs(
+    title = "Bohrtiefe nach Gemeinde und Jahr",
+    x = "Jahr Bohrungsausführung",
+    y = "Tiefe in Meter",
+    caption = "Daten: https://geo.zh.ch/s/a76cc86c-72f6-4bdd-89de-b852c3b0f750",
+    fill = "Gemeinde"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.major.x = element_blank(),
+    axis.text.x = element_text(angle = 10, vjust = 1.5)
   )
 ```
-Koordianten absteigend sortieren
-```{r}
-Sondierbohrungen |>  
-  arrange(desc(east_coordinate_lv95), desc(north_coordinate_lv95))
-```
 
-
-
-```{r}
-library(ggthemes)
-library(ggridges)
-```
-
-
-```{r}
-library(devtools)
-# devtools::install_github("statistikZH/statR")
-install_github("statistikZH/statR")
-1
-library(statR)
-1
-install.packages("pak")
-library(statR)
-display.statcol.all()
-
-pak::pak("statistikZH/statR")
-zhpal$zhwebdataviz
-display(zhpal$zhwebdataviz)
-zhpal$zhblue
-display(zhpal$zhblue)
-```
-
-
-Plots erstellen mit Kanton ZH Vorgaben
+## Anzahl Sondierungen pro Gemeinde
 
 ```{r}
 ggplot(
-  data=Sondierbohrungen,
-  mapping=aes(x=Jahr, y=Bohrtiefe_m, fill = Gemeinde))+
-geom_col()+
-    scale_fill_colorblind() +
-   scale_y_continuous(limits = c(0, 30))+
-    labs(title = "Bohrbilanz nach Gemeinde und Jahr",
-         subtitle = "",
-         x = "Jahr Bohrungsausführung",
-         y = "Tiefe in Meter",
-         caption = "Daten: https://geo.zh.ch/s/a76cc86c-72f6-4bdd-89de-b852c3b0f750",
-         fill = "Gemeinde") +
-    theme_minimal(base_size = 12) +
-    theme(panel.grid.major.x = element_blank(),
-          axis.text.x = element_text(angle = 10, 
-                                     vjust = 1.5))
-```
-
-```{r}
-ggplot(
-  data=Sondierbohrungen,
-  mapping=aes(x=Jahr, y=Bohrtiefe_m, fill = Gemeinde))+
-  geom_col(na.rm = TRUE)+
+  data = Sondierbohrungen,
+  mapping = aes(x = Gemeinde, fill = Gemeinde)
+) +
+  geom_bar() +
   scale_fill_colorblind() +
-   scale_x_continuous(limits = c(1960,2035)) +
-   scale_y_continuous(limits = c(1, 25.5))+
-    labs(title = "Bohrbtiefe nach Gemeinde und Jahr",
-         subtitle = "",
-         x = "Jahr Bohrungsausführung",
-         y = "Tiefe in Meter",
-         caption = "Daten: https://geo.zh.ch/s/a76cc86c-72f6-4bdd-89de-b852c3b0f750",
-         fill = "Gemeinde") +
-    theme_minimal(base_size = 12) +
-    theme(panel.grid.major.x = element_blank(),
-          axis.text.x = element_text(angle = 10, 
-                                     vjust = 1.5))
+  labs(title = "Anzahl Sondierungen pro Gemeinde", y = "Anzahl") +
+  theme_minimal(base_size = 12)
 ```
 
-Minimum und Maximum der Jahre als Limit, 1960 bis 2026
+## Grundwasserspiegel auswerten
+
+Mittlerer Grundwasserspiegel pro Gemeinde und Jahr.
 
 ```{r}
-min_Jahr <- min(Sondierbohrungen[,5], na.rm = TRUE)
-max_Jahr <- max(Sondierbohrungen[,5], na.rm = TRUE)
+gws_pro_jahr <- Sondierbohrungen |>
+  summarise(
+    GWS = mean(Grundwasserspiegelkote, na.rm = TRUE),
+    .by = c(Gemeinde, Jahr)
+  )
+
+gws_pro_jahr
 ```
 
+Anzahl der Sondierungen pro Gemeinde und mittlerer Grundwasserspiegel.
 
 ```{r}
-ggplot(
-  data=Sondierbohrungen,
-  mapping=aes(x=Jahr, y=Bohrtiefe_m, fill = Gemeinde))+
-  geom_col(na.rm = TRUE)+
-   scale_x_continuous(limits = c(min_Jahr, max_Jahr)) +
-   scale_y_continuous(limits = c(0.5, 25.5))
-```
-
-Min, Max der Bohrtiefen. 0 bis 2692.5 Meter
-```{r}
-min_bt <- min(Sondierbohrungen[,6], na.rm = TRUE)
-max_bt <- max(Sondierbohrungen[,6], na.rm = TRUE)
-```
-
-Zeile 154 hat eine 0. Deshalb erscheint Erlenbach nicht? Ersetzen durch NA
-
-```{r}
-Sondierbohrungen<-
-  Sondierbohrungen |> 
-  mutate(Bohrtiefe_m = na_if(Bohrtiefe_m, 0))
-```
-
-Erlenbach erscheint immer noch nicht
-```{r}
-ggplot(
-  data=Sondierbohrungen,
-  mapping=aes(x=Jahr, y=Bohrtiefe_m, fill = Gemeinde))+
-  geom_col(na.rm = TRUE)+
-  scale_fill_colorblind() +
-   scale_x_continuous(limits = c(1960,2035)) +
-   scale_y_continuous(limits = c(1, 25.5))+
-    labs(title = "Bohrbtiefe nach Gemeinde und Jahr",
-         subtitle = "",
-         x = "Jahr Bohrungsausführung",
-         y = "Tiefe in Meter",
-         caption = "Daten: https://geo.zh.ch/s/a76cc86c-72f6-4bdd-89de-b852c3b0f750",
-         fill = "Gemeinde") +
-    theme_minimal(base_size = 12) +
-    theme(panel.grid.major.x = element_blank(),
-          axis.text.x = element_text(angle = 10, 
-                                     vjust = 1.5))
-```
-
-
-
-
-```{r}
-Sondierbohrungen
-```
-Min, max Grundwasserspiegelkote  12.3 Meter bis 656.28 Meter
-```{r}
-min_GWS <- min(Sondierbohrungen[,8], na.rm = TRUE)
-max_GWS <- max(Sondierbohrungen[,8], na.rm = TRUE)
-```
-
-Korrektur. 12.3 ist ein Fehler. Falscher Wert in der Datenbank. Zeile 155, Spalte 8 ist GWS Spiegelkote, Spalte 9 Flurabstand
-
-```{r}
-Sondierbohrungen [155, 8] <-666.7
-Sondierbohrungen [155, 9] <-12.3
-```
-
-404.15 bis 666.7 Meter
-```{r}
-min_GWS <- min(Sondierbohrungen[,8], na.rm = TRUE)
-max_GWS <- max(Sondierbohrungen[,8], na.rm = TRUE)
-```
-
-
-```{r}
-Koord<-
-  Sondierbohrungen |>  
-  arrange(desc(east_coordinate_lv95), desc(north_coordinate_lv95))
-```
-
-Grundwasserspiegelkote, Jahr und Gemeinde
-
-```{r}
-ggplot(
-  data=Koord,
-  mapping=aes(x=Grundwasserspiegelkote, y=Jahr, colour = Gemeinde)
-)+
-  geom_point() +
-  geom_smooth(method = "lm")
-```
-
-```{r}
-ggplot(
-  data=Sondierbohrungen,
-  mapping=aes(x=Grundwasserspiegelkote, y=east_coordinate_lv95, colour = Gemeinde)
-)+
-  geom_point() +
-  geom_smooth(method = "lm")
-```
-
-
-```{r}
-ggplot(
-  data=Koord,
-  mapping=aes(x=Grundwasserspiegelkote, y=north_coordinate_lv95, colour = Gemeinde)
-)+
-  geom_point() +
-  geom_smooth(method = "lm")
-```
-
-```{r}
-ggplot(data=Sondierbohrungen,
-  mapping=aes(x=Grundwasserspiegelkote, y=Jahr, colour = Gemeinde)
-)+
-  geom_point() +
-  geom_smooth(method = "lm")
-```
-
-
-```{r}
-ggplot(data = Sondierbohrungen,
-       mapping = aes(x = Grundwasserspiegelkote,
-                     y = Jahr,
-                     color = Gemeinde,
-                     shape = Gemeinde)) +
-    geom_point(size = 1, alpha = 0.7)+
-  facet_wrap(Gemeinde ~ Bohrtiefe_m)
-```
-
-Welche Gemeinde hat die meisten Sondierungen
-
-```{r}
-ggplot(data = Sondierbohrungen,
-       mapping = aes(x = Gemeinde,
-                     fill = Gemeinde))+
-  geom_bar()
-```
-
-Mean Grundwasserspiegelkote 
-
-```{r}
-Sondierbohrungen_zusammenfassung_Grundwasserspiegelkote_Gemeinde <- Sondierbohrungen |>
-  group_by(Gemeinde, Jahr) |>
-  summarise(GWS = mean(Grundwasserspiegelkote, na.rm=TRUE))
-```
-
-Grundwasserspiegel nach Jahr und Gemeinde
-```{r}
-Sondierbohrungen_zusammenfassung_Grundwasserspiegelkote_Gemeinde
-```
-
-Anzahl der Sondierungen pro Gemeinde und mean GWS
-
-```{r}
-x<-
-  Sondierbohrungen |>
-  group_by(Gemeinde) |>
+Sondierbohrungen |>
   summarise(
     anzahl = n(),
-    GWS = mean(Grundwasserspiegelkote, na.rm=TRUE)
+    GWS = mean(Grundwasserspiegelkote, na.rm = TRUE),
+    .by = Gemeinde
+  )
+```
+
+Grundwasserspiegel pro Gemeinde als Boxplot.
+
+```{r}
+ggplot(
+  data = Sondierbohrungen,
+  mapping = aes(x = Gemeinde, y = Grundwasserspiegelkote, fill = Gemeinde)
+) +
+  geom_boxplot() +
+  scale_fill_colorblind() +
+  labs(title = "Grundwasserspiegelkote pro Gemeinde", y = "Kote in Meter") +
+  theme_minimal(base_size = 12)
+```
+
+Grundwasserspiegel über die Jahre, mit Trendlinie pro Gemeinde.
+
+```{r}
+ggplot(
+  data = gws_pro_jahr,
+  mapping = aes(x = GWS, y = Jahr, colour = Gemeinde)
+) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  scale_colour_colorblind() +
+  labs(title = "Grundwasserspiegel über die Jahre", x = "GWS in Meter") +
+  theme_minimal(base_size = 12)
+```
+
+## Bohrtiefe und Ausführungsjahr
+
+```{r}
+ggplot(
+  data = Sondierbohrungen,
+  mapping = aes(x = Bohrtiefe_m, y = Jahr, colour = Gemeinde)
+) +
+  geom_point(na.rm = TRUE) +
+  geom_smooth(method = "lm", formula = y ~ x, na.rm = TRUE) +
+  scale_colour_colorblind() +
+  labs(title = "Bohrtiefe und Jahr der Ausführung", x = "Bohrtiefe in Meter") +
+  theme_minimal(base_size = 12)
+```
+
+## Karte der Sondierbohrungen
+
+Aus den Koordinaten (LV95, EPSG:2056) bauen wir ein `sf`-Objekt und stellen die Bohrungen
+als Karte dar. Wichtig: bei `coords` kommt der Ostwert (east) zuerst, dann der Nordwert
+(north).
+
+```{r}
+sondierungen_sf <- Sondierbohrungen |>
+  filter(!is.na(east_coordinate_lv95), !is.na(north_coordinate_lv95)) |>
+  st_as_sf(
+    coords = c("east_coordinate_lv95", "north_coordinate_lv95"),
+    crs = 2056
   )
 ```
 
 ```{r}
-x
+ggplot(data = sondierungen_sf) +
+  geom_sf(aes(color = Gemeinde, size = Bohrtiefe_m), alpha = 0.7) +
+  scale_color_viridis_d() +
+  labs(
+    title = "Sondierbohrungen am rechten Zürichseeufer",
+    subtitle = "Standorte, eingefärbt nach Gemeinde",
+    color = "Gemeinde",
+    size = "Bohrtiefe (m)",
+    caption = "Daten: geo.zh.ch | Koordinaten: LV95 (EPSG:2056)"
+  ) +
+  theme_minimal()
 ```
-
-
-Anzahl der Sondierungen pro Gemeinde und mean GWS pro Jahr
-
-```{r}
-y<-
-  Sondierbohrungen |>
-  group_by(Gemeinde, Jahr) |>
-  summarise(
-   GWS = mean(Grundwasserspiegelkote, na.rm=TRUE)
-  )
-```
-
-
-```{r}
-y
-```
-
-GWS pro Gemeinde als Boxplot
-
-```{r}
-ggplot(data = Sondierbohrungen,
-       mapping = aes(x = Gemeinde,
-                     y = Grundwasserspiegelkote,
-                     fill = Gemeinde)) +
-  geom_boxplot()
-```
-
-
-
-```{r}
-library(readr)
-library(dplyr)
-```
-
-Wieviele Sondierungen pro Jahr und Gemeinde
-```{r}
-Sondierbohrungen |> 
-  group_by(Gemeinde, Jahr) |> 
-  summarise(count = n())
-```
-
-Anzahl Bohrungen unter 40 Metern
-
-```{r}
-Sondierbohrungen |> 
-  filter(Bohrtiefe_m < 40) |> 
-  group_by(Gemeinde, Jahr) |> 
-  summarise(count = n())
-```
-
-Neue Spalte Verhältnis
-
-```{r}
-Sondierbohrungen |> 
-  mutate(ratio = Bohrtiefe_m / Grundwasserspiegelkote)
-```
-Tabelle Grundwasserspiegelkote Maximum und Minimum
-
-```{r}
-summe<-
-  Sondierbohrungen |> 
-  group_by(Gemeinde) |> 
-  summarize(GWS_max = max(Grundwasserspiegelkote, na.rm = TRUE), 
-            GWS_min = min(Grundwasserspiegelkote, na.rm = TRUE))
-```
-
-Pro Jahr und Gemeinde mean Bohrtiefe und Grundwasserspiegel
-
-```{r}
-Sondierbohrungen |> 
-  filter(!is.na(Grundwasserspiegelkote), !is.na(Bohrtiefe_m)) |>
-  group_by(Gemeinde, Jahr) |> 
-  summarize(GWS_mean = mean(Grundwasserspiegelkote), 
-            Bohrtiefe_mean = mean(Bohrtiefe_m),
-            count = n())
-```
-
-Anzahl GWS Messungen
-```{r}
-Sondierbohrungen |> 
-  count(Gemeinde, Grundwasserspiegelkote)
-```
-Kanton ZH Farben packages installieren
-
-```{r}
-
-library(devtools)
-# devtools::install_github("statistikZH/statR")
-install_github("statistikZH/statR")
-1
-library(statR)
-1
-install.packages("pak")
-library(statR)
-display.statcol.all()
-
-pak::pak("statistikZH/statR")
-zhpal$zhwebdataviz
-display(zhpal$zhwebdataviz)
-zhpal$zhblue
-display(zhpal$zhblue)
-
-```
-
-
-```{r}
-ggplot(Sondierbohrungen, aes(x = Jahr, y = Bohrtiefe_m, fill = Gemeinde)) +
-    geom_col(fill = zhpal$zhblue[1], width = 0.8) +
-        labs(x = "Jahr",
-         y = NULL,
-         title = "Bohrtiefe und Jahr der Ausführung, Zürich",
-         subtitle = "Jahrgänge 1960 bis 2030") +
-    theme_stat() +
-    theme(axis.text.y = element_blank(),
-          panel.grid.major.y = element_blank())
-```
-Bohrtiefe und Ausführungsjahr
-
-```{r}
-ggplot(
-  data=Sondierbohrungen,
-  mapping=aes(x=Bohrtiefe_m, y=Jahr, colour = Gemeinde)
-)+
-  geom_point(na.rm=TRUE) +
-  coord_cartesian(xlim = c(0, 75))+
-  geom_smooth(method = "lm")
-```
-
-```{r}
-summary(Sondierbohrungen)
-```
-
-```{r}
-summary(is.na(Sondierbohrungen$column_name))
-```
-
-```{r}
-library(dplyr)
-Sondierbohrungen |> 
-  filter(!is.na(Jahr)) |> 
-  ggplot(aes(x = Jahr, color = Gemeinde)) + geom_density()
-```
-
-```{r}
-#Sondierbohrungen |> 
- # filter(!is.na(Jahr) |>
-  #ggplot(aes(x = Jahr, y = Grundwasserspiegelkote)) +
-  #geom_point(aes(color = Gemeinde, shape = Gemeinde)) +
- # facet_wrap(~Gemeinde))
-#ggsave(filename = "GWS Gemeinde.png")
-```
-
-```{r}
-library(scales)
-ggplot(
-  data=Sondierbohrungen_zusammenfassung_Grundwasserspiegelkote_Gemeinde,
-  mapping=aes(x=GWS, y=Jahr, colour = Gemeinde))+
-  geom_point()+
-  geom_smooth(method = "lm")+
-  scale_y_continuous(breaks = seq(300, 700, by = 20)) 
-```
-Packages für Koordianten und Maps
-
-```{r}
-#| echo: false
-install.packages("sf",dependencies = TRUE)
-install.packages("maps",dependencies = TRUE)
-library(sf)
-library(maps)
-library(sf)
-library(terra)
-library(dplyr)
-library(spData)
-```
-
-
-
