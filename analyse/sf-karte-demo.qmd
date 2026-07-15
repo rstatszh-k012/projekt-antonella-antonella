@@ -1,0 +1,86 @@
+---
+title: "Sondierbohrungen als Karte (sf-Demo)"
+format: html
+editor: visual
+---
+
+## Ziel
+
+Dieses kurze Dokument zeigt die Pipeline, um die Sondierbohrungen als Karte darzustellen: CSV einlesen, Koordinaten in Zahlen umwandeln, ein `sf`-Objekt bauen und die Bohrungen auf einer Karte anzeigen. Es ergänzt die ausführliche Analyse in `daten/raw/Sondierbohrungen Projekt Antonella.qmd`.
+
+```{r}
+#| label: setup
+#| message: false
+library(tidyverse)
+library(sf)
+```
+
+## Daten einlesen
+
+Die CSV ist UTF-8-kodiert. Mit `encoding = "UTF-8"` kommen die Umlaute korrekt an. Wir benennen die für die Karte nötigen Spalten um und wandeln die Koordinaten in Zahlen um.
+
+```{r}
+csv_pfad <- here::here("daten/raw/SondierbohrungenZollikonKüsnachtErlenbach.CSV")
+
+sondierbohrungen <- read_delim(
+  csv_pfad,
+  delim = ";",
+  locale = locale(encoding = "UTF-8"),
+  show_col_types = FALSE
+) |>
+  rename(
+    east_coordinate_lv95 = XKOORD,
+    north_coordinate_lv95 = YKOORD,
+    Jahr = "Ausführungsjahr",
+    Bohrtiefe_m = Bohrtiefe
+  ) |>
+  mutate(across(
+    c(east_coordinate_lv95, north_coordinate_lv95, Bohrtiefe_m),
+    as.numeric
+  ))
+
+glimpse(sondierbohrungen)
+```
+
+## In ein sf-Objekt umwandeln
+
+Wir behalten nur Zeilen mit gültigen Koordinaten und bauen daraus ein `sf`-Objekt. Das Koordinatensystem ist LV95 (CH1903+), EPSG-Code 2056. Bei `coords` kommt der Ostwert (east) zuerst, dann der Nordwert (north).
+
+```{r}
+sondierungen_sf <- sondierbohrungen |>
+  filter(!is.na(east_coordinate_lv95), !is.na(north_coordinate_lv95)) |>
+  st_as_sf(
+    coords = c("east_coordinate_lv95", "north_coordinate_lv95"),
+    crs = 2056
+  )
+
+sondierungen_sf
+```
+
+## Karte mit ggplot2
+
+```{r}
+ggplot(data = sondierungen_sf) +
+  geom_sf(aes(color = Gemeinde, size = Bohrtiefe_m), alpha = 0.7) +
+  scale_color_viridis_d() +
+  labs(
+    title = "Sondierbohrungen am rechten Zürichseeufer",
+    subtitle = "Standorte, eingefärbt nach Gemeinde",
+    color = "Gemeinde",
+    size = "Bohrtiefe (m)",
+    caption = "Daten: geo.zh.ch | Koordinaten: LV95 (EPSG:2056)"
+  ) +
+  theme_minimal()
+```
+
+## Optional: interaktive Karte mit tmap
+
+Das Paket `tmap` erlaubt eine interaktive Ansicht. Dieser Chunk läuft nur, wenn `tmap` installiert ist; sonst wird er übersprungen.
+
+```{r}
+#| eval: !expr requireNamespace("tmap", quietly = TRUE)
+library(tmap)
+tmap_mode("view")
+tm_shape(sondierungen_sf) +
+  tm_dots(fill = "Gemeinde", size = "Bohrtiefe_m")
+```
