@@ -87,7 +87,7 @@ glimpse(Sondierbohrungen)
 ## Gemeinde- und Firmennamen bereinigen
 
 Die Gemeindenamen tragen den Zusatz "(ZH)". Den entfernen wir, damit die Namen kurz und
-einheitlich sind.
+einheitlich sind. Das Muster \s* wird häufig verwendet, um optionale Leerräume in Texten zu finden, zu entfernen oder um Strings aufzuteilen.
 
 ```{r}
 Sondierbohrungen <- Sondierbohrungen |>
@@ -129,7 +129,7 @@ Sondierbohrungen <- Sondierbohrungen |>
 ```
 
 **Vertauschte Werte beim Grundwasserspiegel.** In der Zeile für Erlenbach 1987 sind
-Grundwasserspiegelkote (12.3) und Flurabstand (666.7) vertauscht. Wir tauschen sie über
+Grundwasserspiegelkote (12.3 Meter) und Flurabstand (666.7 m.ü.M) vertauscht. Wir tauschen sie über
 eine Bedingung zurück.
 
 ```{r}
@@ -299,3 +299,5 @@ ggplot(data = sondierungen_sf) +
   ) +
   theme_minimal()
 ```
+
+
