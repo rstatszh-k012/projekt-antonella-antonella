@@ -1,7 +1,42 @@
 ---
-title: "Sondierbohrungen II"
-format: html
-editor: visual
+title: "Sondierbohrungen im Kanton Zürich"
+subtitle: "Daten aus Zollikon, Küsnacht und Erlenbach"
+# So fügst du dich als Autor:in hinzu:
+# Kopiere die drei Zeilen (name, email, affiliation) und trage deine Daten ein.
+author:
+  - name: "Antonella Toth"
+    email: "aantonella.toth@bd.zh.ch"
+    affiliation: "AWEL"
+date: last-modified
+date-format: "DD.MM.YYYY"
+lang: de-CH
+published-title: "Datum"
+affiliation-title: "Organisationseinheit"
+abstract-title: "Klassifikation"
+abstract: "Intern"
+format:
+    html:
+        # Themeing
+        theme: _extensions/biplaR-html/style/bipla.scss
+        title-block-banner: "#0076BD"
+        css: _extensions/biplaR-html/style/logo.css
+        # Figures
+        fig-cap-location: top
+        fig-align: "left"
+        # TOC and numbering
+        toc: true
+        toc-location: left
+        toc-title: "Inhalt"
+        number-sections: true
+        number-depth: 3
+        # no dependencies
+        embed-resources: true
+engine: knitr
+execute:
+  warning: false
+  echo: true
+editor_options: 
+  chunk_output_type: console
 ---
 
 ## Über dieses Dokument
@@ -20,6 +55,7 @@ Pakete werden einmalig in der Konsole installiert, nicht im Dokument. Alle
 library(tidyverse)
 library(ggthemes)
 library(sf)
+library(tmap)
 ```
 
 ## Daten einlesen
@@ -278,7 +314,7 @@ als Karte dar. Wichtig: bei `coords` kommt der Ostwert (east) zuerst, dann der N
 (north).
 
 ```{r}
-sondierungen_sf <- Sondierbohrungen |>
+sondierungen_sf1 <- Sondierbohrungen |>
   filter(!is.na(east_coordinate_lv95), !is.na(north_coordinate_lv95)) |>
   st_as_sf(
     coords = c("east_coordinate_lv95", "north_coordinate_lv95"),
@@ -287,7 +323,7 @@ sondierungen_sf <- Sondierbohrungen |>
 ```
 
 ```{r}
-ggplot(data = sondierungen_sf) +
+ggplot(data = sondierungen_sf1) +
   geom_sf(aes(color = Gemeinde, size = Bohrtiefe_m), alpha = 0.7) +
   scale_color_viridis_d() +
   labs(
@@ -299,5 +335,35 @@ ggplot(data = sondierungen_sf) +
   ) +
   theme_minimal()
 ```
+
+## In ein sf-Objekt umwandeln
+
+Wir behalten nur Zeilen mit gültigen Koordinaten und bauen daraus ein `sf`-Objekt. Das Koordinatensystem ist LV95 (CH1903+), EPSG-Code 2056. Bei `coords` kommt der Ostwert (east) zuerst, dann der Nordwert (north).
+
+```{r}
+sondierungen_sf <- Sondierbohrungen |>
+  filter(!is.na(east_coordinate_lv95), !is.na(north_coordinate_lv95)) |>
+  st_as_sf(
+    coords = c("east_coordinate_lv95", "north_coordinate_lv95"),
+    crs = 2056
+  )
+
+sondierungen_sf
+```
+
+
+## Interaktive Karte mit tmap
+
+Das Paket `tmap` erlaubt eine interaktive Ansicht. Dieser Chunk läuft nur, wenn `tmap` installiert ist; sonst wird er übersprungen.
+
+```{r}
+#| eval: !expr requireNamespace("tmap", quietly = TRUE)
+library(tmap)
+tmap_mode("view")
+tm_shape(sondierungen_sf1) +
+  tm_dots(fill = "Gemeinde", size = "Bohrtiefe_m")
+```
+
+
 
 
