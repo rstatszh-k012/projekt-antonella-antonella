@@ -166,6 +166,14 @@ Sondierbohrungen <- Sondierbohrungen |>
   )
 ```
 
+*Bereinigte Daten speichern*
+
+Die bereinigte Tabelle wird als CSV unter `daten/processed/` abgelegt, damit sie ohne diesen Bericht weiterverwendet werden kann.
+
+```{r}
+write_csv(Sondierbohrungen, here::here("daten/processed/sondierbohrungen.csv"))
+```
+
 ## Ergebnisse
 
 *Mittlerer Grundwasserspiegel*
