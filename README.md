@@ -18,6 +18,8 @@ Die Access-Sondierbohrdatenbank des Kantons Zürich, die von der Sektion Grundwa
 
 Weitere Informationen: Sondierbohrungen | opendata.swiss
 
+Die Bohrungen sind auch auf [boreholes.swissgeol.ch](https://boreholes.swissgeol.ch/?mapResolution=11.399231336150846&mapCenterX=2684729.7310662046&mapCenterY=1247330.318747367) öffentlich einsehbar, der Bohrdatenplattform der Landesgeologie von swisstopo.
+
 ## Motivation
 
 Die Sektion Grundwasser und Wasserversorgung des Kantons Zürich ist für die Erhebung, Analyse, Speicherung und Bereitstellung geologischer Daten verantwortlich. Mit diesem Projekt werden ausgewählte Datensätze und Anleitungen bereitgestellt, um die Visualisierung und Auswertung von Sondierbohrungen zu erleichtern.
