@@ -44,6 +44,16 @@ rechten Zürichseeufer. Dieses Dokument liest die Rohdaten ein, bereinigt sie un
 stellt Bohrtiefe und Grundwasserspiegel dar. Am Schluss werden die Bohrungen als Karte
 visualisiert.
 
+Die Daten stammen aus dem [GIS-Browser des Kantons Zürich](https://geo.zh.ch/s/a76cc86c-72f6-4bdd-89de-b852c3b0f750). Die Bohrungen sind auch auf [boreholes.swissgeol.ch](https://boreholes.swissgeol.ch/?mapResolution=11.399231336150846&mapCenterX=2684729.7310662046&mapCenterY=1247330.318747367) öffentlich einsehbar, der Bohrdatenplattform der Landesgeologie von swisstopo.
+
+```{=html}
+<style>
+.dataTables_wrapper {
+  font-size: 0.75rem;
+}
+</style>
+```
+
 ```{r}
 #| label: setup
 #| message: false
@@ -203,10 +213,13 @@ koord<-
 ```
 
 ```{r}
+#| column: page-right
 DT::datatable(
   koord,
   caption = "Tabelle 2: Koordinaten absteigend sortiert",
   rownames = FALSE,
+  width = "100%",
+  class = "compact stripe hover nowrap",
   options = list(pageLength = 10, scrollX = TRUE)
 )
 ```
@@ -367,14 +380,19 @@ ggplot(data = sondierungen_sf1) +
 
 ```{r}
 #| label: Gemeinde
-#| tbl-cap: "Koordianaten, Gemeinden, Jahr, GWS."
+#| column: page-right
 
 Sondierbohrungen |> 
   filter(!is.na(Grundwasserspiegelkote)) |> 
-  group_by(Gemeinde) |>
-  gt::gt() |> 
-  gt::fmt_number(columns = c(Grundwasserspiegelkote),
-             decimals = 1)
+  arrange(Gemeinde) |>
+  DT::datatable(
+    caption = "Koordianaten, Gemeinden, Jahr, GWS.",
+    rownames = FALSE,
+    width = "100%",
+    class = "compact stripe hover nowrap",
+    options = list(pageLength = 10, scrollX = TRUE)
+  ) |>
+  DT::formatRound("Grundwasserspiegelkote", digits = 1)
 ```
 
 *Grundwasserspiegelkoten*
