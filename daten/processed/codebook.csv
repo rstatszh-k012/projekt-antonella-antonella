@@ -1,7 +1,6 @@
 variable_name;beschreibung;typ;einheit;
 Archivnummer;Interne Archiv-Nummer;chr;;
 Ausführungsjahr;Jahr in dem die Bohrung gemacht wurde;num;;
-Bauherr;Bauherrschaft der Sondierung;chr;;
 Berichtsdatum;Berichtsdatum;num;;
 Berichts-Nr.;Berichtsnummer der Geologiebüros;chr;;
 Bezeichnung der Bohrung;Bezeichnung oder Name der Bohrung;chr;;

@@ -36,7 +36,7 @@ Im Jahr 1960 wurde in Küsnacht eine Erdöl-Tiefbohrung bis in eine Tiefe von 2 
 
 ## Ordnerstruktur
 
-- `daten/raw/`: Export aus der Sondierbohrdatenbank, zwei CSV-Dateien (Semikolon-getrennt, UTF-8). Der Bericht verwendet `SondierbohrungenZollikonKüsnachtErlenbach.CSV`.
+- `daten/raw/`: Export aus der Sondierbohrdatenbank, zwei CSV-Dateien (Semikolon-getrennt, UTF-8). Der Bericht verwendet `SondierbohrungenZollikonKüsnachtErlenbach.CSV`. Die Spalten `Bauherr` und `Name` (Bearbeiter:in) sind entfernt, weil sie Personendaten enthalten.
 - `daten/processed/`: die bereinigte Tabelle `sondierbohrungen.csv` (wird beim Rendern des Berichts geschrieben) und das `codebook.csv` zu den Rohdaten.
 - `docs/`: die Quarto-Datei des Berichts (`index.qmd`) und die gerenderte Webseite (`index.html`).
 - `analyse/`: eine kurze Demo zur Darstellung der Bohrungen als Karte mit `sf`.
