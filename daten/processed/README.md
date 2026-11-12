@@ -19,4 +19,4 @@ Bereinigte Tabelle aus dem Bericht (`docs/index.qmd`, Abschnitt "Daten"): 170 So
 
 ## codebook.csv
 
-Beschreibt die Spalten der Rohdaten in `daten/raw/` (Semikolon-getrennt): Variablenname, Beschreibung, Typ, Einheit. Die Spalten `Bauherr` und `Name` (Bearbeiter:in) des Exports sind aus den Rohdaten entfernt, weil sie Personendaten enthalten.
+Beschreibt die Spalten der Rohdaten in `daten/raw/` (Semikolon-getrennt): Variablenname, Beschreibung, Typ, Einheit. Die Spalten `Bauherr` und `Name` (Bearbeiter:in) des Exports sind aus den Rohdaten entfernt, weil sie Personendaten enthalten. Aus zwei Berichtstiteln (`Untersuchungsbericht Titel`) sind Familiennamen entfernt.
