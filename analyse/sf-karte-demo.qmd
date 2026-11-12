@@ -6,7 +6,7 @@ editor: visual
 
 ## Ziel
 
-Dieses kurze Dokument zeigt die Pipeline, um die Sondierbohrungen als Karte darzustellen: CSV einlesen, Koordinaten in Zahlen umwandeln, ein `sf`-Objekt bauen und die Bohrungen auf einer Karte anzeigen. Es ergänzt die ausführliche Analyse in `daten/raw/Sondierbohrungen Projekt Antonella.qmd`.
+Dieses kurze Dokument zeigt die Pipeline, um die Sondierbohrungen als Karte darzustellen: CSV einlesen, Koordinaten in Zahlen umwandeln, ein `sf`-Objekt bauen und die Bohrungen auf einer Karte anzeigen. Es ergänzt die ausführliche Analyse in `docs/index.qmd`.
 
 ```{r}
 #| label: setup
