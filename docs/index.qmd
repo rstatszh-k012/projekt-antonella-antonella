@@ -203,8 +203,12 @@ koord<-
 ```
 
 ```{r}
-  kable(koord, caption = "Tabelle 2: Koordinaten absteigend sortiert") |> 
-  kable_styling(bootstrap_options = c("striped", "hover"))
+DT::datatable(
+  koord,
+  caption = "Tabelle 2: Koordinaten absteigend sortiert",
+  rownames = FALSE,
+  options = list(pageLength = 10, scrollX = TRUE)
+)
 ```
 
 
